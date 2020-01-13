@@ -1,6 +1,6 @@
 #Sarah V. Leavitt
 #Boston University Dissertation
-#Simulation
+#Paper 3
 
 ################################################################################
 # This program adds covariates to a simulated outbreak
