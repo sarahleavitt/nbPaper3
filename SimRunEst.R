@@ -32,14 +32,40 @@ simRunEst <- function() {
                                              ifelse(snpDist > thresholds[2], FALSE, NA)))
   )
 
-  
   covariates <- c("Y1", "Y2", "Y3", "Y4", "Y5", "Y6", "timeCat")
   #Vector of proportions of cases to use in training dataset 
   trainingSizes <- c(0.4, 0.6, 0.8)
   
-  #Initializing dataframes to hold results, and coefficients
+  #Initializing dataframes to hold results, and esticients
   rTemp <- NULL
   cTemp <- NULL
+  
+  #Function to find true ORs
+  findORs <- function(outcome, l = 1){
+    est <- NULL
+    #Looping through all covariates
+    for(i in 1:length(covariates)){
+      #Extracting covariate name
+      var <- covariates[i]
+      #Creating a table with proportions in each level of the covariate from training data
+      tab <- prop.table(table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l, 2)
+      odds <- tab[, 2] / tab[, 1]
+      orMean <- odds/odds[1]
+      num <- table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l
+      se <- NA
+      for(i in 1:(nrow(num) - 1)){
+        numTab <- num[c(1, i+1), ]
+        se <- c(se, sqrt(sum(1/numTab)))
+      }
+      orCILB = exp(log(orMean) - 1.96 * se)
+      orCIUB = exp(log(orMean) + 1.96 * se)
+      level <- paste(var, names(orMean), sep = ":")
+      cTemp <- cbind.data.frame(level, orMean, orCILB, orCIUB, outcome = outcome,
+                                stringsAsFactors = FALSE)
+      est <- bind_rows(est, cTemp)
+    }
+    return(est)
+  }
   
       
   ## Looping over proportion in the training dataset ##
@@ -99,16 +125,20 @@ simRunEst <- function() {
     
     rTemp <- bind_rows(rTemp, probs1, probs2)
     
-    coeff1 <- res1$estimates
-    coeff1$pTraining <- pTraining
-    coeff1$outcome <- "transmissionNB"
-    coeff2 <- res2$estimates
-    coeff2$pTraining <- pTraining
-    coeff2$outcome <- "snpCloseNB"
+    est1 <- res1$estimates
+    est1$pTraining <- pTraining
+    est1$outcome <- "transmissionNB"
+    est2 <- res2$estimates
+    est2$pTraining <- pTraining
+    est2$outcome <- "snpCloseNB"
     
-    cTemp <- bind_rows(cTemp, coeff1, coeff2)
+    #Finding the ORs using snpClose
+    estS <- findORs("snpCloseGS")
+    estS$pTraining <- pTraining
+    
+    cTemp <- bind_rows(cTemp, est1, est2, estS)
+    print(paste0("Completed analysis with training proportion ", pTraining))
   }
-  print(paste0("Completed analysis with training proportion ", pTraining))
   
   
   ## Evaluating the performance ##
@@ -116,50 +146,23 @@ simRunEst <- function() {
             %>% group_by(label)
             %>% do(simEvaluate(., truthVar = "transmission"))
             %>% ungroup()
-            %>% mutate(trainingP = as.numeric(str_extract(str_extract(label, "T[:digit:]+\\.*[:digit:]*"),
-                                                          "[:digit:]+\\.*[:digit:]*")))
+            %>% mutate(pTraining = as.numeric(str_extract(str_extract(label, "T[:digit:]+\\.*[:digit:]*"),
+                                                          "[:digit:]+\\.*[:digit:]*")),
+                       goldStd = ifelse(grepl("Truth", label), "transmission", 
+                                 ifelse(grepl("SNPs", label), "snpClose", NA)))
+            
   )
   
-  
-  #### Finding the true ORs ####
-  
-  #Function to find true ORs
-  findORs <- function(outcome, l = 1){
-    coeff <- NULL
-    #Looping through all covariates
-    for(i in 1:length(covariates)){
-      #Extracting covariate name
-      var <- covariates[i]
-      #Creating a table with proportions in each level of the covariate from training data
-      tab <- prop.table(table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l, 2)
-      odds <- tab[, 2] / tab[, 1]
-      orMean <- odds/odds[1]
-      num <- table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l
-      se <- NA
-      for(i in 1:(nrow(num) - 1)){
-        numTab <- num[c(1, i+1), ]
-        se <- c(se, sqrt(sum(1/numTab)))
-      }
-      orCILB = exp(log(orMean) - 1.96 * se)
-      orCIUB = exp(log(orMean) + 1.96 * se)
-      level <- paste(var, names(orMean), sep = ":")
-      cTemp <- cbind.data.frame(level, orMean, orCILB, orCIUB, outcome = outcome,
-                                stringsAsFactors = FALSE)
-      coeff <- bind_rows(coeff, cTemp)
-    }
-    return(coeff)
-  }
-  
   #Finding the true ORs for snpClose and transmission
-  coeffT <- findORs("transmission")
-  coeffS <- findORs("snpClose")
+  estT <- findORs("transmission")
+  estS <- findORs("snpClose")
 
-  allCoeff <- (cTemp
-               %>% bind_rows(coeffT, coeffS)
+  allEst <- (cTemp
+               %>% bind_rows(estT, estS)
                %>% mutate(goldStd = gsub("[A-Z]{2}$", "", outcome))
   )
     
-  return(list(allCoeff, pTemp))
+  return(list(allEst, pTemp))
 } 
 
 

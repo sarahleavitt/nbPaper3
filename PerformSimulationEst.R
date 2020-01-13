@@ -3,7 +3,7 @@
 #Paper 3
 
 ################################################################################
-# This program runs the full set of simulations by calling SimRun.R
+# This program runs the full set of simulations by calling SimRunEst.R
 ################################################################################
 
 rm(list = ls())
@@ -26,33 +26,33 @@ library(stringr)
 
 #### Batch Mode ####
 
-setwd("/project/sv-thesis/nbPaper3/")
-#Getting sample size from the arguements
-args <- commandArgs(trailingOnly = TRUE)
-sampleSize <- as.numeric(args[1])
-#Setting the observation date
-if(as.numeric(args[2]) == 1){
-  observationDate = "infectionDate"
-  dateID = "ID"
-}else if(as.numeric(args[2]) == 2){
-  observationDate = "sampleDate"
-  dateID = "SD"
-}
-#Finding the task number for the run
-iTask <- as.numeric(Sys.getenv("SGE_TASK_ID"))
-#The number of simulations per split
-nSim <- 50
+# setwd("/project/sv-thesis/nbPaper3/")
+# #Getting sample size from the arguements
+# args <- commandArgs(trailingOnly = TRUE)
+# sampleSize <- as.numeric(args[1])
+# #Setting the observation date
+# if(as.numeric(args[2]) == 1){
+#   observationDate = "infectionDate"
+#   dateID = "ID"
+# }else if(as.numeric(args[2]) == 2){
+#   observationDate = "sampleDate"
+#   dateID = "SD"
+# }
+# #Finding the task number for the run
+# iTask <- as.numeric(Sys.getenv("SGE_TASK_ID"))
+# #The number of simulations per split
+# nSim <- 50
 
 
 
 #### Interactive Mode ####
 
-# setwd("~/Boston University/Dissertation/nbPaper3")
-# iTask <- 1
-# sampleSize <- 300
-# observationDate <- "infectionDate"
-# dateID <- "ID"
-# nSim <- 5
+setwd("~/Boston University/Dissertation/nbPaper3")
+iTask <- 1
+sampleSize <- 300
+observationDate <- "infectionDate"
+dateID <- "ID"
+nSim <- 5
 
 
 #### Getting access to functions in other programs ####
@@ -107,7 +107,7 @@ pVar <- "pScaled"
 
 ####################### Running the Simulations ######################
 
-coeff <- NULL
+est <- NULL
 performance <- NULL
 
 #Running the simuliaton for the outbreaks
@@ -125,7 +125,7 @@ for (iteration in 1:nSim){
     cTemp <- res[[1]] %>% mutate(runID = runID)
     pTemp <- res[[2]] %>% mutate(runID = runID)
     
-    coeff <- bind_rows(coeff, cTemp)
+    est <- bind_rows(est, cTemp)
     performance <- bind_rows(performance, pTemp)
     #Printing message that the run is finished
     print(paste0("Completed run ", iteration, " (seed = ", iTask * 1000 + iteration, ")"))
@@ -137,7 +137,7 @@ for (iteration in 1:nSim){
 }
 
 #Saving dataframes with summary of results for all of the runs
-saveRDS(si, file=paste0("../Simulation_Results/coefficients", "_", iTask, ".rds"))
+saveRDS(est, file=paste0("../Simulation_Results/estimates", "_", iTask, ".rds"))
 saveRDS(performance, file=paste0("../Simulation_Results/performance", "_", iTask, ".rds"))
 
 
