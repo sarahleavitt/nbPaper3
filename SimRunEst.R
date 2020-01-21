@@ -34,7 +34,7 @@ simRunEst <- function() {
 
   covariates <- c("Y1", "Y2", "Y3", "Y4", "Y5", "Y6", "timeCat")
   #Vector of proportions of cases to use in training dataset 
-  trainingSizes <- c(0.4, 0.6, 0.8)
+  trainingSizes <- 0.6
   
   #Initializing dataframes to hold results, and esticients
   rTemp <- NULL
@@ -52,15 +52,16 @@ simRunEst <- function() {
       odds <- tab[, 2] / tab[, 1]
       orMean <- odds/odds[1]
       num <- table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l
-      se <- NA
+      orSE <- NA
       for(i in 1:(nrow(num) - 1)){
         numTab <- num[c(1, i+1), ]
-        se <- c(se, sqrt(sum(1/numTab)))
+        orSE <- c(orSE, sqrt(sum(1/numTab)))
       }
-      orCILB = exp(log(orMean) - 1.96 * se)
-      orCIUB = exp(log(orMean) + 1.96 * se)
+      orCILB = exp(log(orMean) - 1.96 * orSE)
+      orCIUB = exp(log(orMean) + 1.96 * orSE)
       level <- paste(var, names(orMean), sep = ":")
-      cTemp <- cbind.data.frame(level, orMean, orCILB, orCIUB, outcome = outcome,
+      cTemp <- cbind.data.frame(level, orMean, logorMean = log(orMean), orSE,
+                                orCILB, orCIUB, outcome = outcome,
                                 stringsAsFactors = FALSE)
       est <- bind_rows(est, cTemp)
     }

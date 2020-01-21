@@ -26,33 +26,33 @@ library(stringr)
 
 #### Batch Mode ####
 
-setwd("/project/sv-thesis/nbPaper3/")
-#Getting sample size from the arguements
-args <- commandArgs(trailingOnly = TRUE)
-sampleSize <- as.numeric(args[1])
-#Setting the observation date
-if(as.numeric(args[2]) == 1){
-  observationDate = "infectionDate"
-  dateID = "ID"
-}else if(as.numeric(args[2]) == 2){
-  observationDate = "sampleDate"
-  dateID = "SD"
-}
-#Finding the task number for the run
-iTask <- as.numeric(Sys.getenv("SGE_TASK_ID"))
-#The number of simulations per split
-nSim <- 50
+# setwd("/project/sv-thesis/nbPaper3/")
+# #Getting sample size from the arguements
+# args <- commandArgs(trailingOnly = TRUE)
+# sampleSize <- as.numeric(args[1])
+# #Setting the observation date
+# if(as.numeric(args[2]) == 1){
+#   observationDate = "infectionDate"
+#   dateID = "ID"
+# }else if(as.numeric(args[2]) == 2){
+#   observationDate = "sampleDate"
+#   dateID = "SD"
+# }
+# #Finding the task number for the run
+# iTask <- as.numeric(Sys.getenv("SGE_TASK_ID"))
+# #The number of simulations per split
+# nSim <- 50
 
 
 
 #### Interactive Mode ####
 
-# setwd("~/Boston University/Dissertation/nbPaper3")
-# iTask <- 1
-# sampleSize <- 300
-# observationDate <- "infectionDate"
-# dateID <- "ID"
-# nSim <- 5
+setwd("~/Boston University/Dissertation/nbPaper3")
+iTask <- 1
+sampleSize <- 300
+observationDate <- "infectionDate"
+dateID <- "ID"
+nSim <- 1
 
 
 #### Getting access to functions in other programs ####
