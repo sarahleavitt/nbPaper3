@@ -94,7 +94,8 @@ biasCov <- (estORs
                            orTruth = first(orTruth),
                            mse = mean(logorBias, na.rm = TRUE) ^ 2,
                            mape = mean(abs(logorBias/logorTruth)),
-                           pCoverage = sum(coverage)/n)
+                           pCoverage = sum(coverage)/n,
+                           width = mean(log(orCIUB) - log(orCILB)))
 )
 
 #Plot of bias
@@ -142,9 +143,20 @@ ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB"),
         axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
 
 
-#Plot of coverage
+#Plot of CI coverage
 ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB")),
        aes(x = level, y = pCoverage, fill = outcome, color = outcome, shape = outcome)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0))) +
+  geom_hline(yintercept = 0.95)
+
+
+#Plot of CI width
+ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB")),
+       aes(x = level, y = width, fill = outcome, color = outcome, shape = outcome)) +
   geom_point() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         axis.text.y = element_text(size = 10),

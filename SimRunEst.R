@@ -50,19 +50,18 @@ simRunEst <- function() {
       #Creating a table with proportions in each level of the covariate from training data
       tab <- prop.table(table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l, 2)
       odds <- tab[, 2] / tab[, 1]
-      orMean <- odds/odds[1]
+      logorMean <- log(odds/odds[1])
       num <- table(covarOrderedPair[, var], covarOrderedPair[, outcome]) + l
-      orSE <- NA
+      logorSE <- NA
       for(i in 1:(nrow(num) - 1)){
         numTab <- num[c(1, i+1), ]
-        orSE <- c(orSE, sqrt(sum(1/numTab)))
+        logorSE <- c(logorSE, sqrt(sum(1/numTab)))
       }
-      orCILB = exp(log(orMean) - 1.96 * orSE)
-      orCIUB = exp(log(orMean) + 1.96 * orSE)
-      level <- paste(var, names(orMean), sep = ":")
-      cTemp <- cbind.data.frame(level, orMean, logorMean = log(orMean), orSE,
-                                orCILB, orCIUB, outcome = outcome,
-                                stringsAsFactors = FALSE)
+      logorCILB = logorMean - 1.96 * logorSE
+      logorCIUB = logorMean + 1.96 * logorSE
+      level <- paste(var, names(logorMean), sep = ":")
+      cTemp <- cbind.data.frame(level, logorMean, logorSE, logorCILB, logorCIUB,
+                                outcome = outcome, stringsAsFactors = FALSE)
       est <- bind_rows(est, cTemp)
     }
     return(est)
@@ -111,7 +110,7 @@ simRunEst <- function() {
     res1 <- nbProbabilities(orderedPair = covarOrderedPair, indIDVar = "individualID",
                             pairIDVar = "edgeID", goldStdVar = "transmissionGS",
                             covariates = covariates, label = paste0("Truth_", label),
-                            n = 10, m = 1, nReps = 10)
+                            n = 10, m = 1, nReps = 20)
     probs1 <- res1$probabilities %>% full_join(covarOrderedPair, by = "edgeID")
     print("Completed transmission gold standard analysis")
     
@@ -120,7 +119,7 @@ simRunEst <- function() {
     res2 <- nbProbabilities(orderedPair = covarOrderedPair, indIDVar = "individualID",
                             pairIDVar = "edgeID", goldStdVar = "snpCloseGS",
                             covariates = covariates, label = paste0("SNPs_", label),
-                            n = 10, m = 1, nReps = 10)
+                            n = 10, m = 1, nReps = 20)
     probs2 <- res2$probabilities %>% full_join(covarOrderedPair, by = "edgeID")
     print("Completed SNP threshold gold standard analysis")
     
