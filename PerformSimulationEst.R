@@ -49,7 +49,7 @@ nSim <- 50
 
 # setwd("~/Boston University/Dissertation/nbPaper3")
 # iTask <- 1
-# sampleSize <- 100
+# sampleSize <- 50
 # observationDate <- "infectionDate"
 # dateID <- "ID"
 # nSim <- 1
@@ -98,7 +98,7 @@ thresholds <- c(2, 12)
 
 #Parameters used to manually run functions
 covariates <- c("Y1", "Y2", "Y3", "Y4", "Y5", "Y6", "timeCat")
-pTraining <- 0.6
+pTraining <- 1
 goldStandard <- "transmission"
 truth <- "transmission"
 pVar <- "pScaled"

@@ -26,19 +26,8 @@ simRunEst <- function() {
   print("Simulated covariates")
   
   #Subseting to the pairs with the potential infector observed before the infectee
-  covarOrderedPair <- (covarPair
-                       %>% filter(observationDate.2 > observationDate.1)
-                       %>% mutate(snpClose = ifelse(snpDist < thresholds[1], TRUE,
-                                             ifelse(snpDist > thresholds[2], FALSE, NA)))
-  )
+  covarOrderedPair <- covarPair %>% filter(observationDate.2 > observationDate.1)
 
-  covariates <- c("Y1", "Y2", "Y3", "Y4", "Y5", "Y6", "timeCat")
-  #Vector of proportions of cases to use in training dataset 
-  trainingSizes <- 0.6
-  
-  #Initializing dataframes to hold results, and esticients
-  rTemp <- NULL
-  cTemp <- NULL
   
   #Function to find true ORs
   findORs <- function(outcome, l = 1){
@@ -60,60 +49,73 @@ simRunEst <- function() {
       logorCILB = logorMean - 1.96 * logorSE
       logorCIUB = logorMean + 1.96 * logorSE
       level <- paste(var, names(logorMean), sep = ":")
-      cTemp <- cbind.data.frame(level, logorMean, logorSE, logorCILB, logorCIUB,
+      estTemp <- cbind.data.frame(level, logorMean, logorSE, logorCILB, logorCIUB,
                                 outcome = outcome, stringsAsFactors = FALSE)
-      est <- bind_rows(est, cTemp)
+      est <- bind_rows(est, estTemp)
     }
     return(est)
   }
   
-      
-  ## Looping over proportion in the training dataset ##
-  for(pTraining in trainingSizes){
+     
+    
+  #### Choosing pTraining cases for training set ####
+  
+  #Make sure that the training dataset has at least 3 true links
+  #(relevant for small sample sizes)
+  nLinked <- 0
+  nTries <- 0
+  while(nLinked < 3){
+    #Finding all pairs that can be included in the training dataset (no missing variables)
+    trainingID <- (covarInd
+                   %>% filter(complete == TRUE, !is.na(sampleDate))
+                   %>% sample_frac(pTraining)
+                   %>% pull(individualID)
+    )
+    
+    covarOrderedPair <- (covarOrderedPair
+                         %>% mutate(trainPair = ifelse(individualID.1 %in% trainingID &
+                                                         individualID.2 %in% trainingID,
+                                                       TRUE, FALSE),
+                                    
+                                    transmissionGS = ifelse(trainPair == TRUE, transmission, NA))
+    )
+    nLinked <- sum(covarOrderedPair$trainPair == TRUE & covarOrderedPair$transmission == TRUE)
+    nTries <- nTries + 1
+  }
+  if(nTries > 1){print(nTries)}
+  
+  #Training: True Transmission
+  res1 <- nbProbabilities(orderedPair = covarOrderedPair, indIDVar = "individualID",
+                          pairIDVar = "edgeID", goldStdVar = "transmissionGS",
+                          covariates = covariates, label = paste0("TruthNB"),
+                          n = 10, m = 1, nReps = 20)
+  probs1 <- res1$probabilities %>% full_join(covarOrderedPair, by = "edgeID")
+  print("Completed transmission gold standard analysis")
+  
+  #Saving coefficients
+  est1 <- res1$estimates
+  est1$outcome <- "transmissionNB"
+  
+  
+  #### Looping over lower SNP thresholds ####
+  
+  thresholds <- c(2, 3, 4, 5)
+  estTemp <- NULL
+  rTemp <- NULL
+  
+  for(lowerT in thresholds){
     
     #Creating a label that identifies the set of inputs
-    label <- paste0("T", pTraining)
-    
-    #### Choosing pTraining cases for training set ####
-    
-    #Make sure that the training dataset has at least 3 true links
-    #(relevant for small sample sizes)
-    nLinked <- 0
-    nTries <- 0
-    while(nLinked < 3){
-      #Finding all pairs that can be included in the training dataset (no missing variables)
-      trainingID <- (covarInd
-                     %>% filter(complete == TRUE, !is.na(sampleDate))
-                     %>% sample_frac(pTraining)
-                     %>% pull(individualID)
-      )
-      
-      covarOrderedPair <- covarOrderedPair %>% mutate(trainPair = ifelse(individualID.1 %in% trainingID &
-                                                                           individualID.2 %in% trainingID,
-                                                                         TRUE, FALSE))
-      nLinked <- sum(covarOrderedPair$trainPair == TRUE & covarOrderedPair$transmission == TRUE)
-      nTries <- nTries + 1
-    }
-    if(nTries > 1){print(nTries)}
-    
-    
-    
-    #### Estimating probabilities ####
+    label <- paste0("T", lowerT)
     
     #Creating gold standard variables that take into account if the pair should be in the training dataset
     covarOrderedPair <- (covarOrderedPair
-                         %>% mutate(snpCloseGS = ifelse(trainPair == TRUE, snpClose, NA),
-                                    transmissionGS = ifelse(trainPair == TRUE, transmission, NA))
+                         %>% mutate(snpClose = ifelse(is.na(snpDist), NA,
+                                               ifelse(snpDist < lowerT, TRUE, FALSE)),
+                                    snpCloseGS = ifelse(trainPair == TRUE & snpDist < lowerT, TRUE,
+                                                 ifelse(trainPair == TRUE & snpDist > thresholds[2],
+                                                        FALSE, NA)))
     )
-    
-    #Training: True Transmission
-    res1 <- nbProbabilities(orderedPair = covarOrderedPair, indIDVar = "individualID",
-                            pairIDVar = "edgeID", goldStdVar = "transmissionGS",
-                            covariates = covariates, label = paste0("Truth_", label),
-                            n = 10, m = 1, nReps = 20)
-    probs1 <- res1$probabilities %>% full_join(covarOrderedPair, by = "edgeID")
-    print("Completed transmission gold standard analysis")
-    
     
     #Training: SNP Distance
     res2 <- nbProbabilities(orderedPair = covarOrderedPair, indIDVar = "individualID",
@@ -121,23 +123,37 @@ simRunEst <- function() {
                             covariates = covariates, label = paste0("SNPs_", label),
                             n = 10, m = 1, nReps = 20)
     probs2 <- res2$probabilities %>% full_join(covarOrderedPair, by = "edgeID")
-    print("Completed SNP threshold gold standard analysis")
     
     rTemp <- bind_rows(rTemp, probs1, probs2)
     
-    est1 <- res1$estimates
-    est1$pTraining <- pTraining
-    est1$outcome <- "transmissionNB"
+    #Saving the covariate estimates
     est2 <- res2$estimates
-    est2$pTraining <- pTraining
+    est2$threshold <- lowerT
     est2$outcome <- "snpCloseNB"
     
-    #Finding the ORs using snpClose
-    estS <- findORs("snpCloseGS")
-    estS$pTraining <- pTraining
+    #Finding the ORs using snpCloseGS
+    estGS <- findORs("snpCloseGS")
+    estGS$threshold <- lowerT
     
-    cTemp <- bind_rows(cTemp, est1, est2, estS)
-    print(paste0("Completed analysis with training proportion ", pTraining))
+    #Finding the ORs using snpClose
+    estS <- findORs("snpClose")
+    estS$threshold <- lowerT
+    
+    #Finding sensitivity and specificity
+    sens <- sum(covarOrderedPair$transmission == TRUE & 
+                  covarOrderedPair$snpClose == TRUE, na.rm = TRUE) /
+      sum(covarOrderedPair$transmission == TRUE, na.rm = TRUE)
+    ppv <- sum(covarOrderedPair$transmission == TRUE & 
+                 covarOrderedPair$snpClose == TRUE, na.rm = TRUE) /
+      sum(covarOrderedPair$snpClose == TRUE, na.rm = TRUE)
+    
+    estComb <- bind_rows(est2, estGS, estS)
+    estComb$sens <- sens
+    estComb$ppv <- ppv
+    
+    estTemp <- bind_rows(estTemp, estComb)
+    
+    print(paste0("Completed SNP gold standard analysis with threshold ", lowerT))
   }
   
   
@@ -153,12 +169,11 @@ simRunEst <- function() {
             
   )
   
-  #Finding the true ORs for snpClose and transmission
+  #Finding the true ORs for transmission
   estT <- findORs("transmission")
-  estS <- findORs("snpClose")
 
-  allEst <- (cTemp
-               %>% bind_rows(estT, estS)
+  allEst <- (estTemp
+               %>% bind_rows(est1, estT)
                %>% mutate(goldStd = gsub("[A-Z]{2}$", "", outcome))
   )
     

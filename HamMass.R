@@ -116,6 +116,7 @@ orderedMass <- massPair %>% filter(CombinedDiff >= 0, Lineage == "Same" | is.na(
 covarMass <- c("Sex", "Age", "CountryOfBirth", "County", "Smear", "AnyImmunoSup",
                 "SharedResG", "GENType", "TimeCat")
 
+set.seed(103020)
 resMass <- nbProbabilities(orderedPair = orderedMass, indIDVar = "StudyID", pairIDVar = "EdgeID",
                            goldStdVar = "ContactTrain", covariates = covarMass,
                            label = "ContactTrainNB", l = 0.5, n = 10, m = 1, nReps = 20)
@@ -128,19 +129,28 @@ estMassC$level <- factor(estMassC$level, levels = rev(estMass$level))
 trueMassC <- findORs(orderedMass, covariates = covarMass, outcome = "ContactTrain", l = 0.5)
 trueMassC$level <- factor(trueMassC$level, levels = rev(trueMassC$level))
 
-estMass <- bind_rows(estMassC, trueMassC)
+estMass <- (estMassC
+            #%>% bind_rows(trueMassC)
+            %>% mutate(Value = gsub("[A-z0-9]+\\:", "", level),
+                       Variable = gsub("\\:[A-z0-9+-<]+", "", level))
+            %>% arrange(abs(logorMean))
+)
 
-ggplot(data = estMass, aes(x = level, y = orMean, ymin = orCILB,
-                          ymax = orCIUB, color = label)) +
+ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
+                          ymax = exp(logorCIUB))) +
   geom_point(size = 2) +
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
+  facet_wrap(~Variable, scales = "free_y") +
+  ylab("Odds ratio with 95% confidence interval") +
   theme(axis.ticks.y = element_blank(),
-        axis.title.x = element_blank(),
-        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360)) +
-  scale_y_log10(breaks = c(0.01, 0.02, 0.05, 0.1, 0.25, 0.5,
-                           1, 2, 4, 10, 30, 100, 500)) +
-  coord_flip()
+        axis.title.y = element_blank(),
+        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0))) +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
+  coord_flip() +
+  ggsave("../Figures/MassCovar.png", width = 10, height = 6, dpi = 300)
 
 
 #### Saving results ####
