@@ -27,11 +27,11 @@
 #Y4 - categorical (1 if match, 2 if neighbors, 3 otherwise)
 #Linked pairs: 60% chance of matching, 35% chance of neighbors, 5% chance of other
 
-#X5 - categorical (a - 70%, b - 30%)
+#X5 - dichotomous (a - 70%, b - 30%)
 #Y5 - dichotomous (1 if a-a, 2 if b-b, 3 if not matching)
 #Linked pairs: 80% chance of matching, 20% change of not matching
 
-#X6 - dichotomous (a - 33%, b - 33%, c - 33%)
+#X6 - categorical (a - 33%, b - 33%, c - 33%)
 #Y6 - dichotomous (1 if match, 0 if not match)
 #Linked pairs: 75% chance of matching, 25% change of not matching
 

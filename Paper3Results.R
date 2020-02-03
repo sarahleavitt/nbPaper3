@@ -9,7 +9,7 @@
 
 #rm(list = ls())
 options(scipen = 999)
-setwd("~/Boston University/Dissertation/Simulation_ResultsEE_1.14.20")
+setwd("~/Boston University/Dissertation/Simulation_ResultsEE_1.30.20")
 
 library(dplyr)
 library(tidyr)
@@ -40,9 +40,9 @@ for (file in list.files()){
 ###################### Performance Metrics #####################
 
 longData <- (perform
-             %>% select(runID, goldStd, pTraining, aucVal, pCorrect,
-                        pTop5, pTop10, pTop25, pTop50)
-             %>% gather(metric, value, -goldStd, -pTraining, -runID)
+             %>% select(runID, goldStd, threshold = pTraining, aucVal,
+                        pCorrect, pTop5, pTop10, pTop25, pTop50)
+             %>% gather(metric, value, -goldStd, -threshold, -runID)
              %>% mutate(metric = factor(metric, levels = c("aucVal", "pCorrect", "pTop5",
                                                            "pTop10", "pTop25", "pTop50"),
                                         labels = c("Area under the ROC",
@@ -53,7 +53,7 @@ longData <- (perform
                                                    "Proportion in Top 50%")))
 )
 
-ggplot(data = longData, aes(x = factor(pTraining), y = value,
+ggplot(data = longData, aes(x = factor(threshold), y = value,
                             fill = goldStd, color = goldStd)) +
   geom_violin(alpha = 0.7, draw_quantiles = 0.5) +
   scale_x_discrete(name = "Scenario") +
@@ -73,91 +73,125 @@ ggplot(data = longData, aes(x = factor(pTraining), y = value,
 trueOR <- (est
            %>% filter(outcome == "transmission")
            %>% group_by(level)
-           %>% summarize(orTruth = mean(orMean))
+           %>% summarize(logorTruth = mean(logorMean))
 )
 
-estORs <- (est
-           %>% filter(outcome != "transmission")
-           %>% full_join(trueOR, by = "level")
-           %>% mutate(logorMean = log(orMean),
-                      logorTruth = log(orTruth),
-                      orBias = orMean - orTruth,
-                      logorBias = logorMean - logorTruth,
-                      coverage = orTruth <= orCIUB & orTruth >= orCILB)
+#Calculating bias and coverage
+estORsAll <- (est
+              %>% filter(outcome != "transmission")
+              %>% full_join(trueOR, by = "level")
+              %>% mutate(logorBias = logorMean - logorTruth,
+                         coverage = logorTruth <= logorCIUB & logorTruth >= logorCILB)
+              %>% filter(!outcome %in% c("snpCloseGS", "transmissionNB"),
+                         !is.na(coverage))
+              %>% mutate(Estimate = ifelse(outcome == "snpClose", "Conventional SNP Distance",
+                                           "Naive Bayes SNP Distance"))
 )
+
+#Removing all but threshold 2 for main analysis
+estORs <- estORsAll %>% filter(threshold == 2)
 
 #Summary of MAPE and coverage
 biasCov <- (estORs
-            %>% filter(pTraining == 0.6)
-             %>% group_by(outcome, level)
+             %>% group_by(outcome, threshold, level)
              %>% summarize(n = n(),
-                           orTruth = first(orTruth),
+                           logorTruth = first(logorTruth),
                            mse = mean(logorBias, na.rm = TRUE) ^ 2,
                            mape = mean(abs(logorBias/logorTruth)),
                            pCoverage = sum(coverage)/n,
-                           width = mean(log(orCIUB) - log(orCILB)))
+                           width = mean(logorCIUB - logorCILB))
+            %>% filter(!outcome %in% c("snpCloseGS", "transmissionNB"))
+            %>% mutate(Estimate = ifelse(outcome == "snpClose", "Conventional SNP Distance",
+                                         "Naive Bayes SNP Distance"))
 )
 
+
 #Plot of bias
-ggplot(data = estORs %>% filter(!outcome %in% c("snpClose", "transmissionNB"),
-                                !is.na(coverage)),
-       aes(x = level, y = logorBias, fill = outcome, color = outcome)) +
-  geom_boxplot(alpha = 0.5) +
-  geom_hline(yintercept = 0) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
-        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
-
-
-ggplot(data = estORs %>% filter(!outcome %in% c("snpClose", "transmissionNB"),
-                                !is.na(coverage))) +
-  geom_boxplot(aes(x = level, y = logorMean, fill = outcome, color = outcome),
+ggplot(data = estORs) +
+  geom_boxplot(aes(x = level, y = logorMean, fill = Estimate, color = Estimate),
                alpha = 0.5) +
-  geom_point(data = trueOR, aes(x = level, y = log(orTruth))) +
+  geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True Log Odds Ratio")) +
   geom_hline(yintercept = 0, linetype = "dotted") +
+  xlab("Covariate and Level") +
+  ylab("Mean Estimated Log Odds Ratio") +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         axis.text.y = element_text(size = 10),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
+        legend.position = "bottom",
+        legend.title = element_blank()) +
+  ggsave("../Figures/EE_Bias.png", width = 7, height = 5, dpi = 300)
 
 
 #Plot of MAPE
-ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB"),
-                                 !is.na(pCoverage)),
-       aes(x = level, y = mape, fill = outcome, color = outcome, shape = outcome)) +
+pe1 <- ggplot(data = biasCov, aes(x = level, y = mape, fill = Estimate,
+                           color = Estimate, shape = Estimate)) +
   geom_point() +
+  xlab("Covariate and Level") +
+  ylab("Mean Absolute Precentage Error") +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         axis.text.y = element_text(size = 10),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
+        legend.position = "none")
 
 #Plot of MSE
-ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB"),
-                                 !is.na(pCoverage)),
-       aes(x = level, y = mse, fill = outcome, color = outcome, shape = outcome)) +
+pe2 <- ggplot(data = biasCov, aes(x = level, y = mse, fill = Estimate,
+                           color = Estimate, shape = Estimate)) +
   geom_point() +
+  xlab("Covariate and Level") +
+  ylab("Mean Standard Error") +
+  theme_bw() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         axis.text.y = element_text(size = 10),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
+        legend.position = "none")
 
 
 #Plot of CI coverage
-ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB")),
-       aes(x = level, y = pCoverage, fill = outcome, color = outcome, shape = outcome)) +
+pe3 <- ggplot(data = biasCov, aes(x = level, y = pCoverage, fill = Estimate,
+                           color = Estimate, shape = Estimate)) +
   geom_point() +
+  geom_hline(yintercept = 0.95) +
+  xlab("Covariate and Level") +
+  ylab("Confidence Interval Coverage") +
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         axis.text.y = element_text(size = 10),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0))) +
-  geom_hline(yintercept = 0.95)
+        legend.position = "none")
 
 
 #Plot of CI width
-ggplot(data = biasCov %>% filter(!outcome %in% c("snpClose", "transmissionNB")),
-       aes(x = level, y = width, fill = outcome, color = outcome, shape = outcome)) +
+pe4 <- ggplot(data = biasCov, aes(x = level, y = width, fill = Estimate,
+                           color = Estimate, shape = Estimate)) +
   geom_point() +
+  xlab("Covariate and Level") +
+  ylab("Confidence Interval Width") +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+
+grid.arrange(pe1, pe2, pe3, pe4)
+pe <- arrangeGrob(pe1, pe2, pe3, pe4)
+ggsave(file = "../Figures/EE_Error.png", plot = pe,
+       width = 8, height = 6, units = "in", dpi = 300)
+
+
+
+
+#### Supplementary Figure: Bias by Threshold ####
+
+ggplot(data = estORsAll) +
+  facet_wrap(~threshold) +
+  geom_boxplot(aes(x = level, y = logorMean, fill = outcome, color = outcome),
+               alpha = 0.5) +
+  geom_point(data = trueOR, aes(x = level, y = logorTruth)) +
+  geom_hline(yintercept = 0, linetype = "dotted") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
         axis.text.y = element_text(size = 10),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),

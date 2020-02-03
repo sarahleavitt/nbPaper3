@@ -162,7 +162,7 @@ simRunEst <- function() {
             %>% group_by(label)
             %>% do(simEvaluate(., truthVar = "transmission"))
             %>% ungroup()
-            %>% mutate(pTraining = as.numeric(str_extract(str_extract(label, "T[:digit:]+\\.*[:digit:]*"),
+            %>% mutate(threshold = as.numeric(str_extract(str_extract(label, "T[:digit:]+\\.*[:digit:]*"),
                                                           "[:digit:]+\\.*[:digit:]*")),
                        goldStd = ifelse(grepl("Truth", label), "transmission", 
                                  ifelse(grepl("SNPs", label), "snpClose", NA)))

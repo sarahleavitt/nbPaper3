@@ -6,15 +6,19 @@
 # This program finds the effect estimates from naive Bayes for Hamburg and MA
 ################################################################################
 
-setwd("~/Boston University/Dissertation/nbPaper3")
+setwd("~/Boston University/Dissertation")
+options(scipen = 999)
 #rm(list = ls())
 
 library(dplyr)
 library(tidyr)
 library(devtools)
-load_all("../nbTransmission")
+library(ggplot2)
+library(tableone)
+load_all("nbTransmission")
 
 
+#Function to find true ORs
 #Function to find true ORs
 findORs <- function(df, covariates, outcome, l = 1){
   df <- as.data.frame(df)
@@ -26,33 +30,32 @@ findORs <- function(df, covariates, outcome, l = 1){
     #Creating a table with proportions in each level of the covariate from training data
     tab <- prop.table(table(df[, var], df[, outcome]) + l, 2)
     odds <- tab[, 2] / tab[, 1]
-    orMean <- odds/odds[1]
+    logorMean <- log(odds/odds[1])
     num <- table(df[, var], df[, outcome]) + l
-    se <- NA
+    logorSE <- NA
     for(i in 1:(nrow(num) - 1)){
       numTab <- num[c(1, i+1), ]
-      se <- c(se, sqrt(sum(1/numTab)))
+      logorSE <- c(logorSE, sqrt(sum(1/numTab)))
     }
-    orCILB = exp(log(orMean) - 1.96 * se)
-    orCIUB = exp(log(orMean) + 1.96 * se)
-    level <- paste(var, names(orMean), sep = ":")
-    cTemp <- cbind.data.frame(level, orMean, orCILB, orCIUB, label = outcome,
-                              stringsAsFactors = FALSE)
-    est <- bind_rows(est, cTemp)
+    logorCILB = logorMean - 1.96 * logorSE
+    logorCIUB = logorMean + 1.96 * logorSE
+    level <- paste(var, names(logorMean), sep = ":")
+    estTemp <- cbind.data.frame(level, logorMean, logorSE, logorCILB, logorCIUB,
+                                outcome = outcome, stringsAsFactors = FALSE)
+    est <- bind_rows(est, estTemp)
   }
   return(est)
 }
 
-
 ######################### Hamburg Analysis ###########################
 
-#Reading in datasets from HamburgPrep.R
+#Reading in datasets from HamburgAnalysis.R
 set.seed(103020)
-hamInd <- readRDS("../Datasets/HamburgInd.rds")
-hamPair <- readRDS("../Datasets/HamburgPair.rds")
+hamInd <- readRDS("Datasets/HamburgInd.rds")
+hamPair <- readRDS("Datasets/HamburgPair.rds")
 
 orderedHam <- (hamPair
-               %>% filter(!is.na(IsolationDiff) & IsolationDiff >= 0)
+               %>% filter(!is.na(IsolationDiff) & IsolationDiff > 0)
                %>% mutate(snpClose = ifelse(snpDist < 2, TRUE,
                                      ifelse(snpDist > 12, FALSE, NA)))
 )
@@ -84,19 +87,61 @@ estHamC$level <- factor(estHamC$level, levels = rev(estHamC$level))
 trueHamG$level <- factor(trueHamG$level, levels = rev(trueHamG$level))
 trueHamC$level <- factor(trueHamC$level, levels = rev(trueHamC$level))
 
-estHam <- bind_rows(estHamC, estHamG, trueHamG, trueHamC)
+estHam <- (estHamG
+           %>% bind_rows(estHamC)
+           %>% mutate(Value = gsub("[A-z0-9]+\\:", "", level),
+                      Variable = gsub("\\:[A-z0-9+-<=>]+", "", level))
+           %>% arrange(abs(logorMean))
+           %>% mutate(Variable = factor(Variable, levels = covarHam, 
+                                        labels = c("Sex", "Age Group",
+                                                   "Nationality", "City",
+                                                   "Smear Result", "HIV Status",
+                                                   "Substance Abuse", "Residence",
+                                                   "Affiliation with\nlocal drinking scene",
+                                                   "Observation time\ndifference")),
+                      
+                      Value = factor(Value, levels = c("m-f", "f-m", "m-m",
+                                                       "Same", "Same-Other", "Diff-Other",
+                                                       "Same-Germany", "InfectorSmear+", "InfectorHIV+",
+                                                       "Both", "Neither", "BothStable",
+                                                       "BothHomeless", "BothNot", "BothAssociated",
+                                                       ">4y", "3-4y", "2-3y", "1-2y",
+                                                       "f-f", "Different", "Diff-Germany",
+                                                       "InfectorSmear-", "InfectorHIV-", "<=1y"),
+                                     
+                                     labels = c("Male to female", "Female to male", "Male to Male",
+                                                "Same", "Same foreign\ncountry",  "Different foreign\ncountries",
+                                                "Both German", "Infector smear+", "Infector HIV+",
+                                                "Both", "Neither", "Both permanent",
+                                                "Both homeless", "Neither affiliated", "Both affiliated",
+                                                ">4 years", "3-4 years", "2-3 years", "1-2 years",
+                                                "Female to female", "Different",
+                                                "One German, one\nforeign country", "Infector smear-",
+                                                "Infector HIV-", "<1 year")))
+)
 
-ggplot(data = estHam, aes(x = level, y = orMean, ymin = orCILB,
-                          ymax = orCIUB, color = label)) +
+#Saving results
+saveRDS(estHam, "Datasets/HamburgEst.rds")
+
+ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
+                           ymax = exp(logorCIUB), color = label)) +
   geom_point(size = 2) +
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
+  facet_wrap(~Variable, scales = "free_y") +
+  ylab("Odds ratio with 95% confidence interval") +
+  theme_bw() +
   theme(axis.ticks.y = element_blank(),
-        axis.title.x = element_blank(),
-        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360)) +
-  scale_y_log10(breaks = c(0.01, 0.02, 0.05, 0.1, 0.25, 0.5,
-                           1, 2, 4, 10, 30, 100, 500)) +
-  coord_flip()
+        axis.title.y = element_blank(),
+        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "bottom",
+        legend.title = element_blank()) +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
+  coord_flip() +
+  ggsave("Figures/HamCovar.png", width = 10, height = 6, dpi = 300)
+
 
 
 
@@ -104,8 +149,8 @@ ggplot(data = estHam, aes(x = level, y = orMean, ymin = orCILB,
 ######################### Massachusetts Analysis ############################
 
 #Reading in cleaned datasets from MassPrep.R
-massInd <- readRDS("../Datasets/MassInd.rds")
-massPair <- readRDS("../Datasets/MassPair.rds")
+massInd <- readRDS("Datasets/MassInd.rds")
+massPair <- readRDS("Datasets/MassPair.rds")
 
 
 #Creating an ordered dataset that also removes pairs with different lineages
@@ -122,40 +167,81 @@ resMass <- nbProbabilities(orderedPair = orderedMass, indIDVar = "StudyID", pair
                            label = "ContactTrainNB", l = 0.5, n = 10, m = 1, nReps = 20)
 
 resMassCov <- orderedMass %>% full_join(resMass$probabilities, by = "EdgeID")
-estMassC <- resMass$estimates
-estMassC$level <- factor(estMassC$level, levels = rev(estMass$level))
 
-#Finding the covariate and genetic ORs
-trueMassC <- findORs(orderedMass, covariates = covarMass, outcome = "ContactTrain", l = 0.5)
-trueMassC$level <- factor(trueMassC$level, levels = rev(trueMassC$level))
-
-estMass <- (estMassC
-            #%>% bind_rows(trueMassC)
-            %>% mutate(Value = gsub("[A-z0-9]+\\:", "", level),
-                       Variable = gsub("\\:[A-z0-9+-<]+", "", level))
+estMass <- (resMass$estimates
+            %>% mutate(Level = factor(level, levels = rev(level)),
+                       Value = gsub("[A-z0-9]+\\:", "", level),
+                       Variable = gsub("\\:[A-z0-9+-<>=]+", "", level))
             %>% arrange(abs(logorMean))
+            %>% mutate(Variable = factor(Variable, levels = covarMass, 
+                                         labels = c("Sex", "Age Group",
+                                                    "Country of Birth", "MA County of Residence",
+                                                    "Smear Result", "Immune-suppressed",
+                                                    "Shared resistance to\nhow many drugs",
+                                                    "CDC GENType",
+                                                    "Observation time\ndifference")),
+                       
+                       Value = factor(Value, levels = c("m-f", "f-m", "m-m",
+                                                        "Same", "Same-Other", "Diff-Other",
+                                                        "Same-USA", "Neighbor", "InfectorSmear+", 
+                                                        "InfectorImmuneSup+", "3+", "2", "1",
+                                                        ">4y", "3-4y", "2-3y", "1-2y",
+                                                        "f-f", "Different", "Diff-USA",
+                                                        "Other", "InfectorSmear-", "InfectorImmuneSup-",
+                                                        "0", "<=1y"),
+                                      
+                                      labels = c("Male to female", "Female to male", "Male to Male",
+                                                 "Same", "Same foreign\ncountry",  "Different foreign\ncountries",
+                                                 "Both US born", "Neighboring", "Infector smear-",
+                                                 "Infector not\nsuppressed", "3+", "2", "1",
+                                                 ">4 years", "3-4 years", "2-3 years", "1-2 years",
+                                                 "Female to female", "Different", "One US, one\nforeign country",
+                                                 "More distant", "Infector smear+", "Infector\nsuppressed",
+                                                 "0", "<1 year")))
 )
 
+#Saving results
+saveRDS(estMass, "Datasets/MassEst.rds")
+
+
 ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
-                          ymax = exp(logorCIUB))) +
+                          ymax = exp(logorCIUB), color = label)) +
   geom_point(size = 2) +
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
   facet_wrap(~Variable, scales = "free_y") +
   ylab("Odds ratio with 95% confidence interval") +
+  theme_bw() +
   theme(axis.ticks.y = element_blank(),
         axis.title.y = element_blank(),
         strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
         axis.text.x = element_text(angle = 45, hjust = 1),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0))) +
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "none") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("../Figures/MassCovar.png", width = 10, height = 6, dpi = 300)
+  ggsave("Figures/MassCovar.png", width = 8, height = 5, dpi = 300)
 
 
-#### Saving results ####
-saveRDS(estHam, "../Datasets/HamburgEst.rds")
-saveRDS(estMass, "../Datasets/MassEst.rds")
+## PRESENTATION VERSION ##
+ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
+                           ymax = exp(logorCIUB), color = label)) +
+  geom_point(size = 2) +
+  geom_errorbar(width = 0.3) +
+  geom_hline(aes(yintercept = 1), linetype = 2) +
+  facet_wrap(~Variable, scales = "free_y") +
+  ylab("Odds ratio with 95% confidence interval") +
+  theme_bw(base_size = 16) +
+  theme(axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "none") +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
+  coord_flip() +
+  ggsave("Figures/MassCovar_pres.png", width = 11, height = 7.5, dpi = 300)
+
 
 
 
@@ -163,19 +249,9 @@ saveRDS(estMass, "../Datasets/MassEst.rds")
 
 ############################# Covariate Tables ###############################
 
-#### Massachusetts ####
-covarM <- CreateTableOne(vars = covarMass, factorVars = covarMass, data = orderedMass)
-covarM <- as.data.frame(print(covarM, showAllLevels = TRUE))
-
-#Stratified by contact group
-covarCM <- CreateTableOne(vars = covarMass, factorVars = covarMass,
-                             data = orderedMass, strata = "ContactTrain", test = FALSE)
-covarCM <- as.data.frame(print(covarCM, showAllLevels = TRUE))
-
-covarAllM <- cbind.data.frame(covarM, covarCM)
-
 
 #### Hamburg ####
+
 covarH <- CreateTableOne(vars = covarHam, factorVars = covarHam, data = orderedHam)
 covarH <- as.data.frame(print(covarH, showAllLevels = TRUE))
 
@@ -188,6 +264,23 @@ covarGH <- CreateTableOne(vars = covarHam, factorVars = covarHam,
                           data = orderedHam, strata = "snpClose", test = FALSE)
 covarGH <- as.data.frame(print(covarGH, showAllLevels = TRUE))
 
-covarAllH <- cbind.data.frame(covarH, covarCH, covarGH)
+covarAllH <- cbind.data.frame(covarH, covarGH, covarCH)
+
+
+
+#### Massachusetts ####
+
+covarM <- CreateTableOne(vars = covarMass, factorVars = covarMass, data = orderedMass)
+covarM <- as.data.frame(print(covarM, showAllLevels = TRUE))
+
+#Stratified by contact group
+covarCM <- CreateTableOne(vars = covarMass, factorVars = covarMass,
+                             data = orderedMass, strata = "ContactTrain", test = FALSE)
+covarCM <- as.data.frame(print(covarCM, showAllLevels = TRUE))
+
+covarAllM <- cbind.data.frame(covarM, covarCM)
+
+
+
 
 
