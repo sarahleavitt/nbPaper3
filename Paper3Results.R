@@ -67,6 +67,7 @@ ggplot(data = longData, aes(x = factor(threshold), y = value,
         legend.position = "none")
 
 
+
 ###################### Contribution of Covariates ########################
 
 #Taking the average OR over all simulations as the 'truth'
@@ -84,8 +85,8 @@ estORsAll <- (est
                          coverage = logorTruth <= logorCIUB & logorTruth >= logorCILB)
               %>% filter(!outcome %in% c("snpCloseGS", "transmissionNB"),
                          !is.na(coverage))
-              %>% mutate(Estimate = ifelse(outcome == "snpClose", "Conventional SNP Distance",
-                                           "Naive Bayes SNP Distance"))
+              %>% mutate(Estimate = ifelse(outcome == "snpClose", "Close genetic relatedness",
+                                           "Naive Bayes modified\nclose genetic relatedness"))
 )
 
 #Removing all but threshold 2 for main analysis
@@ -101,8 +102,8 @@ biasCov <- (estORs
                            pCoverage = sum(coverage)/n,
                            width = mean(logorCIUB - logorCILB))
             %>% filter(!outcome %in% c("snpCloseGS", "transmissionNB"))
-            %>% mutate(Estimate = ifelse(outcome == "snpClose", "Conventional SNP Distance",
-                                         "Naive Bayes SNP Distance"))
+            %>% mutate(Estimate = ifelse(outcome == "snpClose", "Close genetic relatedness",
+                                         "Naive Bayes modified\nclose genetic relatedness"))
 )
 
 
@@ -110,13 +111,12 @@ biasCov <- (estORs
 ggplot(data = estORs) +
   geom_boxplot(aes(x = level, y = logorMean, fill = Estimate, color = Estimate),
                alpha = 0.5) +
-  geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True Log Odds Ratio")) +
+  geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True log odds ratio")) +
   geom_hline(yintercept = 0, linetype = "dotted") +
   xlab("Covariate and Level") +
   ylab("Mean Estimated Log Odds Ratio") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
         legend.position = "bottom",
         legend.title = element_blank()) +
@@ -130,8 +130,7 @@ pe1 <- ggplot(data = biasCov, aes(x = level, y = mape, fill = Estimate,
   xlab("Covariate and Level") +
   ylab("Mean Absolute Precentage Error") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
         legend.position = "none")
 
@@ -142,8 +141,7 @@ pe2 <- ggplot(data = biasCov, aes(x = level, y = mse, fill = Estimate,
   xlab("Covariate and Level") +
   ylab("Mean Standard Error") +
   theme_bw() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
         legend.position = "none")
 
@@ -156,8 +154,7 @@ pe3 <- ggplot(data = biasCov, aes(x = level, y = pCoverage, fill = Estimate,
   xlab("Covariate and Level") +
   ylab("Confidence Interval Coverage") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
         legend.position = "none")
 
@@ -169,8 +166,7 @@ pe4 <- ggplot(data = biasCov, aes(x = level, y = width, fill = Estimate,
   xlab("Covariate and Level") +
   ylab("Confidence Interval Width") +
   theme_bw() + 
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
         legend.position = "bottom",
         legend.title = element_blank())
@@ -179,21 +175,28 @@ pe4 <- ggplot(data = biasCov, aes(x = level, y = width, fill = Estimate,
 grid.arrange(pe1, pe2, pe3, pe4)
 pe <- arrangeGrob(pe1, pe2, pe3, pe4)
 ggsave(file = "../Figures/EE_Error.png", plot = pe,
-       width = 8, height = 6, units = "in", dpi = 300)
+       width = 8.5, height = 6, units = "in", dpi = 300)
 
 
 
 
 #### Supplementary Figure: Bias by Threshold ####
 
+estORsAll <- estORsAll %>% mutate(thresholdc = paste0("<", threshold, " SNPs"))
+
 ggplot(data = estORsAll) +
-  facet_wrap(~threshold) +
-  geom_boxplot(aes(x = level, y = logorMean, fill = outcome, color = outcome),
+  facet_wrap(~thresholdc) +
+  geom_boxplot(aes(x = level, y = logorMean, fill = Estimate, color = Estimate),
                alpha = 0.5) +
-  geom_point(data = trueOR, aes(x = level, y = logorTruth)) +
+  geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True log odds ratio")) +
   geom_hline(yintercept = 0, linetype = "dotted") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
-        axis.text.y = element_text(size = 10),
+  xlab("Covariate and Level") +
+  ylab("Mean Estimated Log Odds Ratio") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
-        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)))
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "bottom",
+        legend.title = element_blank()) +
+  ggsave("../Figures/EE_Thresholds.png", width = 8, height = 7, dpi = 300)
 

@@ -92,7 +92,9 @@ estHam <- (estHamG
            %>% mutate(Value = gsub("[A-z0-9]+\\:", "", level),
                       Variable = gsub("\\:[A-z0-9+-<=>]+", "", level))
            %>% arrange(abs(logorMean))
-           %>% mutate(Variable = factor(Variable, levels = covarHam, 
+           %>% mutate(labelc = ifelse(label == "SameGroupNB", "Confirmed contact",
+                               ifelse(label == "snpCloseNB", "Close genetic relatedness", NA)),
+                      Variable = factor(Variable, levels = covarHam, 
                                         labels = c("Sex", "Age Group",
                                                    "Nationality", "City",
                                                    "Smear Result", "HIV Status",
@@ -124,20 +126,20 @@ estHam <- (estHamG
 saveRDS(estHam, "Datasets/HamburgEst.rds")
 
 ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
-                           ymax = exp(logorCIUB), color = label)) +
+                           ymax = exp(logorCIUB), color = labelc)) +
   geom_point(size = 2) +
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
   facet_wrap(~Variable, scales = "free_y") +
   ylab("Odds ratio with 95% confidence interval") +
+  labs(color = "Training Links") +
   theme_bw() +
   theme(axis.ticks.y = element_blank(),
         axis.title.y = element_blank(),
         strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
         axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-        legend.position = "bottom",
-        legend.title = element_blank()) +
+        legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
   ggsave("Figures/HamCovar.png", width = 10, height = 6, dpi = 300)
@@ -168,12 +170,13 @@ resMass <- nbProbabilities(orderedPair = orderedMass, indIDVar = "StudyID", pair
 
 resMassCov <- orderedMass %>% full_join(resMass$probabilities, by = "EdgeID")
 
-estMass <- (resMass$estimates
+estMass <- (estMass
             %>% mutate(Level = factor(level, levels = rev(level)),
                        Value = gsub("[A-z0-9]+\\:", "", level),
                        Variable = gsub("\\:[A-z0-9+-<>=]+", "", level))
             %>% arrange(abs(logorMean))
-            %>% mutate(Variable = factor(Variable, levels = covarMass, 
+            %>% mutate(labelc = ifelse(label == "ContactTrainNB", "Confirmed contact", NA),
+                       Variable = factor(Variable, levels = covarMass, 
                                          labels = c("Sex", "Age Group",
                                                     "Country of Birth", "MA County of Residence",
                                                     "Smear Result", "Immune-suppressed",
@@ -192,11 +195,11 @@ estMass <- (resMass$estimates
                                       
                                       labels = c("Male to female", "Female to male", "Male to Male",
                                                  "Same", "Same foreign\ncountry",  "Different foreign\ncountries",
-                                                 "Both US born", "Neighboring", "Infector smear-",
+                                                 "Both US born", "Neighboring", "Infector smear+",
                                                  "Infector not\nsuppressed", "3+", "2", "1",
                                                  ">4 years", "3-4 years", "2-3 years", "1-2 years",
                                                  "Female to female", "Different", "One US, one\nforeign country",
-                                                 "More distant", "Infector smear+", "Infector\nsuppressed",
+                                                 "More distant", "Infector smear-", "Infector\nsuppressed",
                                                  "0", "<1 year")))
 )
 
@@ -205,19 +208,20 @@ saveRDS(estMass, "Datasets/MassEst.rds")
 
 
 ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
-                          ymax = exp(logorCIUB), color = label)) +
+                          ymax = exp(logorCIUB), color = labelc)) +
   geom_point(size = 2) +
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
   facet_wrap(~Variable, scales = "free_y") +
   ylab("Odds ratio with 95% confidence interval") +
+  labs(color = "Training Links") +
   theme_bw() +
   theme(axis.ticks.y = element_blank(),
         axis.title.y = element_blank(),
         strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
         axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-        legend.position = "none") +
+        legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
   ggsave("Figures/MassCovar.png", width = 8, height = 5, dpi = 300)
