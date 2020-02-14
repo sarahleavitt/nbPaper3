@@ -70,16 +70,23 @@ ggplot(data = longData, aes(x = factor(threshold), y = value,
 
 ###################### Contribution of Covariates ########################
 
+#### Supplementary Table: True ORs ####
+
 #Taking the average OR over all simulations as the 'truth'
 trueOR <- (est
            %>% filter(outcome == "transmission")
            %>% group_by(level)
            %>% summarize(logorTruth = mean(logorMean))
+           %>% mutate(orTruth = exp(logorTruth),
+                      level = gsub("Y", "Z", level),
+                      level = gsub("timeCat", "Time", level))
 )
 
 #Calculating bias and coverage
 estORsAll <- (est
               %>% filter(outcome != "transmission")
+              %>% mutate(level = gsub("Y", "Z", level),
+                         level = gsub("timeCat", "Time", level))
               %>% full_join(trueOR, by = "level")
               %>% mutate(logorBias = logorMean - logorTruth,
                          coverage = logorTruth <= logorCIUB & logorTruth >= logorCILB)

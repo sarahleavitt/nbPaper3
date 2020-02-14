@@ -94,6 +94,7 @@ estHam <- (estHamG
            %>% arrange(abs(logorMean))
            %>% mutate(labelc = ifelse(label == "SameGroupNB", "Confirmed contact",
                                ifelse(label == "snpCloseNB", "Close genetic relatedness", NA)),
+                      labelc = factor(labelc, levels = c("Confirmed contact", "Close genetic relatedness")),
                       Variable = factor(Variable, levels = covarHam, 
                                         labels = c("Sex", "Age Group",
                                                    "Nationality", "City",
@@ -224,7 +225,7 @@ ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
         legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("Figures/MassCovar.png", width = 8, height = 5, dpi = 300)
+  ggsave("Figures/MassCovar.png", width = 8, height = 6, dpi = 300)
 
 
 ## PRESENTATION VERSION ##
