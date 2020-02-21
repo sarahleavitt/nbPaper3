@@ -92,8 +92,6 @@ estORsAll <- (est
                          coverage = logorTruth <= logorCIUB & logorTruth >= logorCILB)
               %>% filter(!outcome %in% c("snpCloseGS", "transmissionNB"),
                          !is.na(coverage))
-              %>% mutate(Estimate = ifelse(outcome == "snpClose", "Close genetic relatedness",
-                                           "Naive Bayes modified\nclose genetic relatedness"))
 )
 
 #Removing all but threshold 2 for main analysis
@@ -109,16 +107,19 @@ biasCov <- (estORs
                            pCoverage = sum(coverage)/n,
                            width = mean(logorCIUB - logorCILB))
             %>% filter(!outcome %in% c("snpCloseGS", "transmissionNB"))
-            %>% mutate(Estimate = ifelse(outcome == "snpClose", "Close genetic relatedness",
-                                         "Naive Bayes modified\nclose genetic relatedness"))
 )
 
 
-#Plot of bias
+#### Figure: Boxplots of bias ####
 ggplot(data = estORs) +
-  geom_boxplot(aes(x = level, y = logorMean, fill = Estimate, color = Estimate),
+  geom_boxplot(aes(x = level, y = logorMean, fill = outcome, color = outcome),
                alpha = 0.5) +
   geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True log odds ratio")) +
+  scale_shape_discrete(labels = c(expression("True log odds ratio (OR"^"T"*")"))) +
+  scale_fill_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                 expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
+  scale_color_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                 expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
   geom_hline(yintercept = 0, linetype = "dotted") +
   xlab("Covariate and Level") +
   ylab("Mean Estimated Log Odds Ratio") +
@@ -130,9 +131,30 @@ ggplot(data = estORs) +
   ggsave("../Figures/EE_Bias.png", width = 7, height = 5, dpi = 300)
 
 
+## PRESENTATION VERSION ##
+ggplot(data = estORs) +
+  geom_boxplot(aes(x = level, y = logorMean, fill = outcome, color = outcome),
+               alpha = 0.5) +
+  geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True log odds ratio")) +
+  scale_shape_discrete(labels = c(expression("True log odds ratio (OR"^"T"*")"))) +
+  scale_fill_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                 expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
+  scale_color_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                  expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
+  geom_hline(yintercept = 0, linetype = "dotted") +
+  xlab("Covariate and Level") +
+  ylab("Mean Estimated Log Odds Ratio") +
+  theme_bw(base_size = 16) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        legend.position = "bottom",
+        legend.title = element_blank()) +
+  ggsave("../Figures/EE_Bias_pres.png", width = 7, height = 5, dpi = 300)
+
+
 #Plot of MAPE
-pe1 <- ggplot(data = biasCov, aes(x = level, y = mape, fill = Estimate,
-                           color = Estimate, shape = Estimate)) +
+pe1 <- ggplot(data = biasCov, aes(x = level, y = mape, fill = outcome,
+                           color = outcome, shape = outcome)) +
   geom_point() +
   xlab("Covariate and Level") +
   ylab("Mean Absolute Precentage Error") +
@@ -142,8 +164,8 @@ pe1 <- ggplot(data = biasCov, aes(x = level, y = mape, fill = Estimate,
         legend.position = "none")
 
 #Plot of MSE
-pe2 <- ggplot(data = biasCov, aes(x = level, y = mse, fill = Estimate,
-                           color = Estimate, shape = Estimate)) +
+pe2 <- ggplot(data = biasCov, aes(x = level, y = mse, fill = outcome,
+                           color = outcome, shape = outcome)) +
   geom_point() +
   xlab("Covariate and Level") +
   ylab("Mean Standard Error") +
@@ -154,8 +176,8 @@ pe2 <- ggplot(data = biasCov, aes(x = level, y = mse, fill = Estimate,
 
 
 #Plot of CI coverage
-pe3 <- ggplot(data = biasCov, aes(x = level, y = pCoverage, fill = Estimate,
-                           color = Estimate, shape = Estimate)) +
+pe3 <- ggplot(data = biasCov, aes(x = level, y = pCoverage, fill = outcome,
+                           color = outcome, shape = outcome)) +
   geom_point() +
   geom_hline(yintercept = 0.95) +
   xlab("Covariate and Level") +
@@ -167,22 +189,33 @@ pe3 <- ggplot(data = biasCov, aes(x = level, y = pCoverage, fill = Estimate,
 
 
 #Plot of CI width
-pe4 <- ggplot(data = biasCov, aes(x = level, y = width, fill = Estimate,
-                           color = Estimate, shape = Estimate)) +
+pe4 <- ggplot(data = biasCov, aes(x = level, y = width, fill = outcome,
+                           color = outcome, shape = outcome)) +
   geom_point() +
+  scale_fill_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                 expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
+  scale_color_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                  expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
+  scale_shape_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                  expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
   xlab("Covariate and Level") +
   ylab("Confidence Interval Width") +
   theme_bw() + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.y = element_text(margin = margin(t = 0, r = 10, b = 0, l = 0)),
+        legend.text = element_text(margin = margin(l = 0)),
+        legend.spacing.x = unit(0.1, "cm"),
         legend.position = "bottom",
         legend.title = element_blank())
 
 
+
+#### Figure: Plot of Error and Coverage ####
+
 grid.arrange(pe1, pe2, pe3, pe4)
 pe <- arrangeGrob(pe1, pe2, pe3, pe4)
 ggsave(file = "../Figures/EE_Error.png", plot = pe,
-       width = 8.5, height = 6, units = "in", dpi = 300)
+       width = 10, height = 7, units = "in", dpi = 300)
 
 
 
@@ -193,9 +226,14 @@ estORsAll <- estORsAll %>% mutate(thresholdc = paste0("<", threshold, " SNPs"))
 
 ggplot(data = estORsAll) +
   facet_wrap(~thresholdc) +
-  geom_boxplot(aes(x = level, y = logorMean, fill = Estimate, color = Estimate),
+  geom_boxplot(aes(x = level, y = logorMean, fill = outcome, color = outcome),
                alpha = 0.5) +
   geom_point(data = trueOR, aes(x = level, y = logorTruth, shape = "True log odds ratio")) +
+  scale_shape_discrete(labels = c(expression("True log odds ratio (OR"^"T"*")"))) +
+  scale_fill_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                 expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
+  scale_color_discrete(labels = c(expression("Close genetic relatedness (OR"^"G"*")"),
+                                  expression("Naive Bayes modified\nclose genetic relatedness (OR"^"M"*")"))) +
   geom_hline(yintercept = 0, linetype = "dotted") +
   xlab("Covariate and Level") +
   ylab("Mean Estimated Log Odds Ratio") +
