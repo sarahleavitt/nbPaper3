@@ -6,7 +6,7 @@
 # This program finds the effect estimates from naive Bayes for Hamburg and MA
 ################################################################################
 
-setwd("~/Boston University/Dissertation")
+setwd("~/Boston University/Dissertation/nbPaper3")
 options(scipen = 999)
 #rm(list = ls())
 
@@ -51,8 +51,8 @@ findORs <- function(df, covariates, outcome, l = 1){
 
 #Reading in datasets from HamburgAnalysis.R
 set.seed(103020)
-hamInd <- readRDS("Datasets/HamburgInd.rds")
-hamPair <- readRDS("Datasets/HamburgPair.rds")
+hamInd <- readRDS("../Datasets/HamburgInd.rds")
+hamPair <- readRDS("../Datasets/HamburgPair.rds")
 
 orderedHam <- (hamPair
                %>% filter(!is.na(IsolationDiff) & IsolationDiff > 0)
@@ -124,7 +124,8 @@ estHam <- (estHamG
 )
 
 #Saving results
-saveRDS(estHam, "Datasets/HamburgEst.rds")
+saveRDS(estHam, "../Datasets/HamburgEst.rds")
+estHam <- readRDS("../Datasets/HamburgEst.rds")
 
 ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
                            ymax = exp(logorCIUB), color = labelc)) +
@@ -132,7 +133,7 @@ ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
   facet_wrap(~Variable, scales = "free_y") +
-  ylab("Odds ratio with 95% confidence interval") +
+  ylab(expression("Odds ratio (OR"^"M"*") with 95% confidence interval")) +
   labs(color = "Training Links") +
   theme_bw() +
   theme(axis.ticks.y = element_blank(),
@@ -143,8 +144,28 @@ ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
         legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("Figures/HamCovar.png", width = 10, height = 6, dpi = 300)
+  ggsave("../Figures/HamCovar.png", width = 10, height = 6, dpi = 300)
 
+
+## PRESENTATION VERSION ##
+ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
+                          ymax = exp(logorCIUB), color = labelc)) +
+  geom_point(size = 2) +
+  geom_errorbar(width = 0.3) +
+  geom_hline(aes(yintercept = 1), linetype = 2) +
+  facet_wrap(~Variable, scales = "free_y") +
+  ylab(expression("Odds ratio (OR"^"M"*") with 95% confidence interval")) +
+  labs(color = "Training Links") +
+  theme_bw(base_size = 14) +
+  theme(axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "bottom") +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
+  coord_flip() +
+  ggsave("../Figures/HamCovar_pres.png", width = 11.5, height = 7, dpi = 300)
 
 
 
@@ -152,8 +173,8 @@ ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
 ######################### Massachusetts Analysis ############################
 
 #Reading in cleaned datasets from MassPrep.R
-massInd <- readRDS("Datasets/MassInd.rds")
-massPair <- readRDS("Datasets/MassPair.rds")
+massInd <- readRDS("../Datasets/MassInd.rds")
+massPair <- readRDS("../Datasets/MassPair.rds")
 
 
 #Creating an ordered dataset that also removes pairs with different lineages
@@ -205,7 +226,8 @@ estMass <- (estMass
 )
 
 #Saving results
-saveRDS(estMass, "Datasets/MassEst.rds")
+saveRDS(estMass, "../Datasets/MassEst.rds")
+estMass <- readRDS("../Datasets/MassEst.rds")
 
 
 ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
@@ -214,7 +236,7 @@ ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
   facet_wrap(~Variable, scales = "free_y") +
-  ylab("Odds ratio with 95% confidence interval") +
+  ylab(expression("Odds ratio (OR"^"M"*") with 95% confidence interval")) +
   labs(color = "Training Links") +
   theme_bw() +
   theme(axis.ticks.y = element_blank(),
@@ -225,7 +247,7 @@ ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
         legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("Figures/MassCovar.png", width = 8, height = 6, dpi = 300)
+  ggsave("../Figures/MassCovar.png", width = 8, height = 6, dpi = 300)
 
 
 ## PRESENTATION VERSION ##
@@ -235,17 +257,18 @@ ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
   geom_errorbar(width = 0.3) +
   geom_hline(aes(yintercept = 1), linetype = 2) +
   facet_wrap(~Variable, scales = "free_y") +
-  ylab("Odds ratio with 95% confidence interval") +
-  theme_bw(base_size = 16) +
+  ylab(expression("Odds ratio (OR"^"M"*") with 95% confidence interval")) +
+  labs(color = "Training Links") +
+  theme_bw(base_size = 14) +
   theme(axis.ticks.y = element_blank(),
         axis.title.y = element_blank(),
         strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
         axis.text.x = element_text(angle = 45, hjust = 1),
         axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
-        legend.position = "none") +
+        legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("Figures/MassCovar_pres.png", width = 11, height = 7.5, dpi = 300)
+  ggsave("../Figures/MassCovar_pres.png", width = 9.5, height = 7, dpi = 300)
 
 
 
