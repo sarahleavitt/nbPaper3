@@ -15,10 +15,9 @@ library(tidyr)
 library(devtools)
 library(ggplot2)
 library(tableone)
-load_all("nbTransmission")
+load_all("../nbTransmission")
 
 
-#Function to find true ORs
 #Function to find true ORs
 findORs <- function(df, covariates, outcome, l = 1){
   df <- as.data.frame(df)
@@ -66,12 +65,12 @@ covarHam <- c("Sex", "Age", "Nationality", "Study", "SmearPos", "HIV",
 resHamG <- nbProbabilities(orderedPair = orderedHam, indIDVar = "individualID",
                            pairIDVar = "edgeID", goldStdVar = "snpClose",
                            covariates = covarHam, label = "snpCloseNB",
-                           l = 1, n = 10, m = 1, nReps = 20)
+                           l = 1, n = 10, m = 1, nReps = 50)
 
 resHamC <- nbProbabilities(orderedPair = orderedHam, indIDVar = "individualID",
                            pairIDVar = "edgeID", goldStdVar = "SameGroup",
                            covariates = covarHam, label = "SameGroupNB",
-                           l = 1, n = 10, m = 1, nReps = 20)
+                           l = 1, n = 10, m = 1, nReps = 50)
 
 resHamCovG <- resHamG$probabilities %>% full_join(orderedHam, by = "edgeID")
 resHamCovC <- resHamC$probabilities %>% full_join(orderedHam, by = "edgeID")
@@ -125,7 +124,7 @@ estHam <- (estHamG
 
 #Saving results
 saveRDS(estHam, "../Datasets/HamburgEst.rds")
-estHam <- readRDS("../Datasets/HamburgEst.rds")
+#estHam <- readRDS("../Datasets/HamburgEst.rds")
 
 ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
                            ymax = exp(logorCIUB), color = labelc)) +
@@ -188,11 +187,11 @@ covarMass <- c("Sex", "Age", "CountryOfBirth", "County", "Smear", "AnyImmunoSup"
 set.seed(103020)
 resMass <- nbProbabilities(orderedPair = orderedMass, indIDVar = "StudyID", pairIDVar = "EdgeID",
                            goldStdVar = "ContactTrain", covariates = covarMass,
-                           label = "ContactTrainNB", l = 0.5, n = 10, m = 1, nReps = 20)
+                           label = "ContactTrainNB", l = 0.5, n = 10, m = 1, nReps = 50)
 
 resMassCov <- orderedMass %>% full_join(resMass$probabilities, by = "EdgeID")
 
-estMass <- (estMass
+estMass <- (resMass$estimates
             %>% mutate(Level = factor(level, levels = rev(level)),
                        Value = gsub("[A-z0-9]+\\:", "", level),
                        Variable = gsub("\\:[A-z0-9+-<>=]+", "", level))
@@ -209,25 +208,25 @@ estMass <- (estMass
                        Value = factor(Value, levels = c("m-f", "f-m", "m-m",
                                                         "Same", "Same-Other", "Diff-Other",
                                                         "Same-USA", "Neighbor", "InfectorSmear+", 
-                                                        "InfectorImmuneSup+", "3+", "2", "1",
+                                                        "InfectorImmuneSup+", "3+", "2", "1", "0",
                                                         ">4y", "3-4y", "2-3y", "1-2y",
                                                         "f-f", "Different", "Diff-USA",
                                                         "Other", "InfectorSmear-", "InfectorImmuneSup-",
-                                                        "0", "<=1y"),
+                                                        "S", "<=1y"),
                                       
                                       labels = c("Male to female", "Female to male", "Male to Male",
                                                  "Same", "Same foreign\ncountry",  "Different foreign\ncountries",
                                                  "Both US born", "Neighboring", "Infector smear+",
-                                                 "Infector not\nsuppressed", "3+", "2", "1",
+                                                 "Infector not\nsuppressed", "3+", "2", "1", "0",
                                                  ">4 years", "3-4 years", "2-3 years", "1-2 years",
                                                  "Female to female", "Different", "One US, one\nforeign country",
                                                  "More distant", "Infector smear-", "Infector\nsuppressed",
-                                                 "0", "<1 year")))
+                                                 "S", "<1 year")))
 )
 
 #Saving results
 saveRDS(estMass, "../Datasets/MassEst.rds")
-estMass <- readRDS("../Datasets/MassEst.rds")
+#estMass <- readRDS("../Datasets/MassEst.rds")
 
 
 ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
