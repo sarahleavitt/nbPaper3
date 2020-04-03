@@ -124,8 +124,29 @@ estHam <- (estHamG
 
 #Saving results
 saveRDS(estHam, "../Datasets/HamburgEst.rds")
-#estHam <- readRDS("../Datasets/HamburgEst.rds")
+estHam <- readRDS("../Datasets/HamburgEst.rds")
 
+ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
+                          ymax = exp(logorCIUB), color = labelc)) +
+  geom_point(size = 2) +
+  geom_errorbar(width = 0.3) +
+  geom_hline(aes(yintercept = 1), linetype = 2) +
+  facet_wrap(~Variable, scales = "free_y") +
+  ylab(expression("Odds ratio (OR"^"M"*") with 95% confidence interval")) +
+  labs(color = "Training Links") +
+  theme_bw() +
+  scale_color_grey(start = 0.6, end = 0.3) +
+  theme(axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "bottom") +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
+  coord_flip() +
+  ggsave("../Figures/HamCovar.png", width = 10, height = 6, dpi = 300)
+
+## COLOR VERSION ##
 ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
                            ymax = exp(logorCIUB), color = labelc)) +
   geom_point(size = 2) +
@@ -143,7 +164,7 @@ ggplot(data = estHam, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
         legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("../Figures/HamCovar.png", width = 10, height = 6, dpi = 300)
+  ggsave("../Figures/HamCovar_color.png", width = 10, height = 6, dpi = 300)
 
 
 ## PRESENTATION VERSION ##
@@ -226,9 +247,30 @@ estMass <- (resMass$estimates
 
 #Saving results
 saveRDS(estMass, "../Datasets/MassEst.rds")
-#estMass <- readRDS("../Datasets/MassEst.rds")
+estMass <- readRDS("../Datasets/MassEst.rds")
 
 
+ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
+                           ymax = exp(logorCIUB), color = labelc)) +
+  geom_point(size = 2) +
+  geom_errorbar(width = 0.3) +
+  geom_hline(aes(yintercept = 1), linetype = 2) +
+  facet_wrap(~Variable, scales = "free_y") +
+  ylab(expression("Odds ratio (OR"^"M"*") with 95% confidence interval")) +
+  labs(color = "Training Links") +
+  theme_bw() +
+  scale_color_grey(start = 0.3, end = 0.3) +
+  theme(axis.ticks.y = element_blank(),
+        axis.title.y = element_blank(),
+        strip.text.y = element_text(hjust = 0, vjust = 1, angle = 360),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        axis.title.x = element_text(margin = margin(t = 10, r = 0, b = 0, l = 0)),
+        legend.position = "bottom") +
+  scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
+  coord_flip() +
+  ggsave("../Figures/MassCovar.png", width = 8, height = 6, dpi = 300)
+
+## COLOR VERSION ##
 ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
                           ymax = exp(logorCIUB), color = labelc)) +
   geom_point(size = 2) +
@@ -246,8 +288,7 @@ ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
         legend.position = "bottom") +
   scale_y_log10(breaks = c(0.01, 0.1, 1, 10, 100, 500)) +
   coord_flip() +
-  ggsave("../Figures/MassCovar.png", width = 8, height = 6, dpi = 300)
-
+  ggsave("../Figures/MassCovar_color.png", width = 8, height = 6, dpi = 300)
 
 ## PRESENTATION VERSION ##
 ggplot(data = estMass, aes(x = Value, y = exp(logorMean), ymin = exp(logorCILB),
