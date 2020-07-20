@@ -7,9 +7,10 @@ associations with close genetic distance and if the relationship can be improved
 by the naive Bayes transmission method. It also finds the contribution of the 
 covariates to the transmission probabilities estimated for a TB outbreak in Hamburg,
 Germany and TB surveillance data from the Massachusetts department of health.
-These programs use the nbTransmission R package 
-(https://github.com/sarahleavitt/nbTransmission) as well as the simulation programs 
-in the nbSimulation directory (https://github.com/sarahleavitt/nbSimulation).
+These programs use the nbTransmission R package available
+on CRAN or GitHub (https://github.com/sarahleavitt/nbTransmission)
+as well as the simulation programs in the nbSimulation directory
+(https://github.com/sarahleavitt/nbSimulation).
  
 
 ## Simulation Programs
